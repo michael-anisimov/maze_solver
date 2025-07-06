@@ -4,21 +4,6 @@
 #include <vector>
 #include <string>
 
-/**
- * @file ui_state.h
- * @brief User interface state management
- * 
- * This file defines the UIState structure and related UI management functions
- * for the maze pathfinding visualizer.
- */
-
-/**
- * @brief Central state structure for the user interface
- * 
- * Contains all the state information needed to manage the interactive
- * maze pathfinding visualizer, including algorithm selection, file selection,
- * animation speed, and runtime state.
- */
 struct UIState {
     // Runtime state
     bool running;        ///< Whether the algorithm is currently running

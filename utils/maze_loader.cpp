@@ -5,30 +5,6 @@
 #include <utility>
 #include <string>
 
-/**
- * @file maze_loader.cpp
- * @brief Maze file loading and parsing utilities
- * 
- * This file contains functions for loading maze data from text files
- * and parsing the maze format to extract start/end positions.
- */
-
-/**
- * @brief Load maze data from a text file
- * 
- * Reads a maze file and parses it into a 2D matrix representation.
- * The file format is expected to be:
- * - ASCII representation of the maze where:
- *   - 'X' represents a wall
- *   - ' ' (space) represents a path
- * - A line starting with "start" followed by coordinates (x, y)
- * - A line starting with "end" followed by coordinates (x, y)
- * 
- * @param filename Path to the maze file
- * @param start Output parameter for start coordinates
- * @param end Output parameter for end coordinates
- * @return Matrix representation of the maze, or empty matrix if loading fails
- */
 Matrix readMaze(const std::string& filename, Coordinates& start, Coordinates& end) {
     std::ifstream file(filename);
     if (!file.is_open()) {
