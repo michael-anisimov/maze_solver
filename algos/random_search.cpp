@@ -2,7 +2,7 @@
 #include "../include/ui_functions.h"
 #include <vector>
 #include <map>
-	#include <queue>
+#include <queue>
 #include <random>
 #include <algorithm>
 #include <unistd.h>
@@ -20,9 +20,17 @@ bool findPathRandomSearch(Matrix& maze, const Coordinates& start, const Coordina
 	openedNodes = 1;
 	
 	while (!q.empty()) {
+		// Check for immediate quit first
+		if (state.user_quit) {
+			return false;
+		}
+		
 		int inputResult = handleInput(state);
 		if (inputResult == 0) {
 			return false;
+		}
+		if (inputResult == 4) {
+			return false; // Immediate quit
 		}
 		if (inputResult == 2) {
 			drawMaze(maze, state);

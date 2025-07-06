@@ -61,12 +61,14 @@ int main() {
     // Initialize UI state
     uiState.running = false;
     uiState.paused = false;
+    uiState.finished = false;
     uiState.restart_requested = false;
+    uiState.user_quit = false;
     uiState.opened_nodes = 0;
     uiState.current_algorithm = 0;
     uiState.current_file = 4;  // Default to maze #5 (index 4)
     uiState.speed = 0.1;
-    uiState.selected_option = 0;
+    uiState.selected_option = 0;  // Start with "LETS GO!" selected
     
     // Available algorithms
     uiState.algorithms = {"BFS", "DFS", "Random Search", "Greedy Search", "A*"};
@@ -78,8 +80,8 @@ int main() {
     }
     
     // Speed options
-    uiState.speeds = {"Very Slow", "Slow", "Normal", "Fast", "Very Fast"};
-    uiState.speed_values = {0.5, 0.2, 0.1, 0.05, 0.01};
+    uiState.speeds = {"Extremely Slow", "Very Slow", "Slow", "Normal", "Fast", "Very Fast", "Ultra Fast", "Insane", "Ludicrous"};
+    uiState.speed_values = {5.0, 1.0, 0.5, 0.1, 0.05, 0.01, 0.001, 0.0005, 0.0001};
     
     // Main application loop
     while (programRunning) {
@@ -139,10 +141,10 @@ void showMainMenu() {
     
     // Menu options
     std::vector<std::string> options = {
-        "Select File",
+        "LETS GO!",
+        "Select Maze",
         "Select Algorithm", 
         "Adjust Speed",
-        "Let's go!",
         "Quit"
     };
     
@@ -204,17 +206,17 @@ void showMainMenu() {
             break;
         case 10:  // Enter
             switch (uiState.selected_option) {
-                case 0:  // Select File
+                case 0:  // Start Pathfinding
+                    runAlgorithm();
+                    break;
+                case 1:  // Select File
                     showFileSelection();
                     break;
-                case 1:  // Select Algorithm
+                case 2:  // Select Algorithm
                     showAlgorithmSelection();
                     break;
-                case 2:  // Adjust Speed
+                case 3:  // Adjust Speed
                     showSpeedSelection();
-                    break;
-                case 3:  // Start Pathfinding
-                    runAlgorithm();
                     break;
                 case 4:  // Quit
                     programRunning = false;
@@ -235,6 +237,9 @@ void showMainMenu() {
  * for the pathfinding algorithm.
  */
 void showFileSelection() {
+    // Store the current selection to restore it when returning
+    int original_selection = uiState.selected_option;
+    
     while (true) {
         clear();
         drawHeader();
@@ -303,6 +308,8 @@ void showFileSelection() {
                 return;
             case 'q':
             case 'Q':
+                // Restore original selection if user quits without selecting
+                uiState.selected_option = original_selection;
                 return;
         }
     }
@@ -315,6 +322,9 @@ void showFileSelection() {
  * to use for the maze solving.
  */
 void showAlgorithmSelection() {
+    // Store the current selection to restore it when returning
+    int original_selection = uiState.selected_option;
+    
     while (true) {
         clear();
         drawHeader();
@@ -383,6 +393,8 @@ void showAlgorithmSelection() {
                 return;
             case 'q':
             case 'Q':
+                // Restore original selection if user quits without selecting
+                uiState.selected_option = original_selection;
                 return;
         }
     }
@@ -395,6 +407,9 @@ void showAlgorithmSelection() {
  * for the pathfinding visualization.
  */
 void showSpeedSelection() {
+    // Store the current selection to restore it when returning
+    int original_selection = uiState.selected_option;
+    
     while (true) {
         clear();
         drawHeader();
@@ -463,6 +478,8 @@ void showSpeedSelection() {
                 return;
             case 'q':
             case 'Q':
+                // Restore original selection if user quits without selecting
+                uiState.selected_option = original_selection;
                 return;
         }
     }
@@ -495,11 +512,17 @@ void runAlgorithm() {
         
         // Check terminal size for maze
         checkTerminalSize(maze, uiState);
+        if (uiState.user_quit) {
+            uiState.user_quit = false; // Reset for next time
+            return;
+        }
         
         // Reset state for new algorithm run
         uiState.running = true;
         uiState.paused = false;
+        uiState.finished = false;
         uiState.restart_requested = false;
+        uiState.user_quit = false;
         uiState.opened_nodes = 0;
         
         // Draw initial maze and status
@@ -531,12 +554,27 @@ void runAlgorithm() {
                 break;
         }
         
+        // Algorithm has finished - set running to false immediately
+        uiState.running = false;
+        
+        // Check if user quit immediately after algorithm
+        if (uiState.user_quit) {
+            return; // Return to main menu immediately
+        }
+        
         // Check if restart was requested
         if (uiState.restart_requested) {
             continue; // Restart the algorithm
         }
         
-        // Show final results while keeping maze visible
+        // Algorithm has finished (only if not quit)
+        uiState.finished = true;
+        
+        // Update status display to show finished state
+        updateStatus(uiState);
+        refresh();
+        
+        // Show final results briefly, then return to main menu
         showFinalResults(maze, pathFound, path, openedNodes);
         
         // If restart was requested after final results, restart
@@ -544,12 +582,7 @@ void runAlgorithm() {
             continue;
         }
         
-        // Redraw maze and status after showing results (in case of terminal resize)
-        drawMaze(maze, uiState);
-        updateStatus(uiState);
-        refresh();
-        
-        // Exit the loop after showing results
+        // Exit the loop and return to main menu
         break;
     }
 }
@@ -614,6 +647,7 @@ bool showFinalResults(const Matrix& maze, bool pathFound, const std::vector<Coor
     };
     drawFinalInfo();
     
+    // Stay on results screen until user explicitly chooses to leave
     while (true) {
         int ch = getch();
         if (ch == 'r' || ch == 'R') {
@@ -661,6 +695,7 @@ bool showFinalResults(const Matrix& maze, bool pathFound, const std::vector<Coor
             updateStatus(uiState);
             refresh();
         }
+        // For any other key, stay on the results screen
     }
 }
 

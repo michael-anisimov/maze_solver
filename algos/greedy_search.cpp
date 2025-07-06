@@ -31,10 +31,18 @@ bool findPathGreedySearch(Matrix& maze, const Coordinates& start, const Coordina
 
 	while (!priorityQueue.empty())
 	{
+		// Check for immediate quit first
+		if (state.user_quit) {
+			return false;
+		}
+		
 		// Handle user input
 		int inputResult = handleInput(state);
 		if (inputResult == 0) {
 			return false; // User quit or stopped
+		}
+		if (inputResult == 4) {
+			return false; // Immediate quit
 		}
 		if (inputResult == 2) {
 			drawMaze(maze, state);

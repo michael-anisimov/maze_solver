@@ -6,6 +6,7 @@
 #include <termios.h>
 #include <cstdlib>
 #include <string>
+#include <algorithm>
 
 /**
  * @file ui_functions.cpp
@@ -199,7 +200,14 @@ void updateStatus(const UIState& state) {
     int status_box_width = base_box_width + remainder;
     drawMenuBox(box_start_y, box_start_y + 2, x, x + status_box_width);
     attron(COLOR_PAIR(3));
-    std::string status = state.running ? (state.paused ? "PAUSED" : "RUNNING") : "STOPPED";
+    std::string status;
+    if (state.finished) {
+        status = "FINISHED";
+    } else if (state.running) {
+        status = state.paused ? "PAUSED" : "RUNNING";
+    } else {
+        status = "PAUSED";
+    }
     mvprintw(box_start_y + 1, x + 2, "Status: %s", status.c_str());
     attroff(COLOR_PAIR(3));
     
@@ -234,7 +242,8 @@ int handleInput(UIState& state) {
     switch (ch) {
         case 'q':
         case 'Q':
-            return 0;  // Quit
+            state.user_quit = true;
+            return 4;  // Immediate quit
         case 'r':
         case 'R':
             state.restart_requested = true;
@@ -267,7 +276,7 @@ int handleInput(UIState& state) {
             // Slow down with fixed steps
             if (state.speed < 1.0) {
                 if (state.speed >= 1.0) state.speed = 1.0;
-                else if (state.speed >= 0.5) state.speed = 1.0;
+                else if (state.speed >= 0.5) state.speed = 0.5;
                 else if (state.speed >= 0.2) state.speed = 0.5;
                 else if (state.speed >= 0.1) state.speed = 0.2;
                 else if (state.speed >= 0.05) state.speed = 0.1;
@@ -298,13 +307,16 @@ int handleInput(UIState& state) {
 void handleInputDuringDelay(UIState& state, const Matrix& maze, double delay) {
     if (delay <= 0) return;
     
-    int delay_ms = static_cast<int>(delay * 1000000);  // Convert to microseconds
-    int step_ms = 10000;  // Check input every 10ms
+    int delay_us = static_cast<int>(delay * 1000000);  // Convert to microseconds
+    int step_us = std::min(1000, delay_us / 10);  // Check input every 1ms or 1/10th of delay, whichever is smaller
     
-    for (int elapsed = 0; elapsed < delay_ms; elapsed += step_ms) {
+    for (int elapsed = 0; elapsed < delay_us; elapsed += step_us) {
         int inputResult = handleInput(state);
         if (inputResult == 0) {
             return;  // User requested to stop
+        }
+        if (inputResult == 4) {
+            return;  // Immediate quit
         }
         if (inputResult == 2) {
             // Redraw maze and status on resize
@@ -312,7 +324,7 @@ void handleInputDuringDelay(UIState& state, const Matrix& maze, double delay) {
             updateStatus(state);
             refresh();
         }
-        usleep(step_ms);
+        usleep(step_us);
     }
 }
 
@@ -369,24 +381,81 @@ void drawInfoPanel(const UIState& /* state */) {
  * @brief Check if terminal size is sufficient for maze display
  * 
  * Validates that the current terminal window is large enough to properly
- * display the maze and UI elements. Currently a placeholder for future
- * size validation.
+ * display the maze and UI elements. If the terminal is too small, it shows
+ * a message asking the user to resize and waits for sufficient size.
  * 
  * @param maze The maze matrix to check dimensions against
  * @param state UI state to update with size information
  */
-void checkTerminalSize(const Matrix& maze, UIState& /* state */) {
+void checkTerminalSize(const Matrix& maze, UIState& state) {
     struct winsize w;
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
-        int terminal_height = w.ws_row;
-        int terminal_width = w.ws_col;
-        int maze_height = static_cast<int>(maze.size());
-        int maze_width = static_cast<int>(maze[0].size());
-        
-        // Check if terminal is large enough for maze + UI elements
-        if (terminal_height < maze_height + 10 || terminal_width < maze_width + 10) {
-            // Terminal too small - could show warning or adjust display
+    int terminal_height, terminal_width;
+    int maze_height = static_cast<int>(maze.size());
+    int maze_width = static_cast<int>(maze[0].size());
+    
+    // Required space for UI elements (header + status + padding)
+    const int required_height = maze_height + 10;
+    const int required_width = maze_width + 10;
+    
+    while (true) {
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0) {
+            terminal_height = w.ws_row;
+            terminal_width = w.ws_col;
+        } else {
+            // Fallback to ncurses getmaxyx
+            getmaxyx(stdscr, terminal_height, terminal_width);
         }
+        
+        // Check if terminal is large enough
+        if (terminal_height >= required_height && terminal_width >= required_width) {
+            break; // Terminal size is sufficient
+        }
+        
+        // Terminal too small - show resize message
+        clear();
+        drawHeader();
+        
+        int max_x, max_y;
+        getmaxyx(stdscr, max_y, max_x);
+        
+        // Calculate center position for the message
+        int center_y = max_y / 2;
+        int center_x = max_x / 2;
+        
+        // Create a bordered message box
+        int box_width = 60;
+        int box_height = 8;
+        int box_start_x = center_x - box_width / 2;
+        int box_start_y = center_y - box_height / 2;
+        int box_end_x = box_start_x + box_width;
+        int box_end_y = box_start_y + box_height;
+        
+        // Draw the message box
+        drawMenuBox(box_start_y, box_end_y, box_start_x, box_end_x);
+        
+        // Display the resize message
+        attron(A_BOLD | COLOR_PAIR(6));
+        mvprintw(box_start_y + 1, box_start_x + 2, "Terminal Size Too Small!");
+        attroff(A_BOLD | COLOR_PAIR(6));
+        
+        attron(COLOR_PAIR(3));
+        mvprintw(box_start_y + 2, box_start_x + 2, "Current terminal size: %dx%d", terminal_width, terminal_height);
+        mvprintw(box_start_y + 3, box_start_x + 2, "Required size: %dx%d", required_width, required_height);
+        mvprintw(box_start_y + 5, box_start_x + 2, "Please resize your terminal window");
+        mvprintw(box_start_y + 6, box_start_x + 2, "and press any key to continue, or Q to quit...");
+        attroff(COLOR_PAIR(3));
+        
+        refresh();
+        
+        // Wait for user input (any key) or terminal resize
+        int ch = getch();
+        if (ch == KEY_RESIZE) {
+            continue;
+        } else if (ch == 'q' || ch == 'Q') {
+            state.user_quit = true;
+            return;
+        }
+        // For any other key, continue the loop to check if size is now sufficient
     }
 }
 

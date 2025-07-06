@@ -23,7 +23,9 @@ struct UIState {
     // Runtime state
     bool running;        ///< Whether the algorithm is currently running
     bool paused;         ///< Whether the algorithm is paused
+    bool finished;       ///< Whether the algorithm has finished
     bool restart_requested; ///< Whether a restart has been requested
+    bool user_quit;      ///< Whether the user quit the algorithm
     
     // Statistics
     int opened_nodes;    ///< Number of nodes explored by the current algorithm
