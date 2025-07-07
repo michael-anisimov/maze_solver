@@ -25,10 +25,10 @@ int main() {
     initializeApplication(uiState);
     
     while (programRunning) {
-        showMainMenu(uiState, programRunning);
+        bool should_run_algorithm = showMainMenu(uiState, programRunning);
         
         // Handle "LETS GO!" selection from main menu
-        if (uiState.selected_option == 0 && programRunning) {
+        if (should_run_algorithm && programRunning) {
             runAlgorithm(uiState);
         }
     }

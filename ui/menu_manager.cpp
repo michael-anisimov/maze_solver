@@ -24,7 +24,7 @@ void drawButton(int y, int x, const std::string& text, bool selected) {
     }
 }
 
-void showMainMenu(UIState& uiState, bool& programRunning) {
+bool showMainMenu(UIState& uiState, bool& programRunning) {
     clear();
     drawHeader();
     
@@ -99,8 +99,7 @@ void showMainMenu(UIState& uiState, bool& programRunning) {
         case 10:  // Enter
             switch (uiState.selected_option) {
                 case 0:  // Start Pathfinding
-                    // This will be handled by the calling function
-                    break;
+                    return true;  // Signal to run the algorithm
                 case 1:  // Select File
                     showFileSelection(uiState);
                     break;
@@ -120,6 +119,8 @@ void showMainMenu(UIState& uiState, bool& programRunning) {
             programRunning = false;
             break;
     }
+    
+    return false;  // No algorithm should be run
 }
 
 void showFileSelection(UIState& uiState) {

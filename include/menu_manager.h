@@ -6,7 +6,7 @@
 #include <vector>
 
 // Menu management functions
-void showMainMenu(UIState& uiState, bool& programRunning);
+bool showMainMenu(UIState& uiState, bool& programRunning);
 void showFileSelection(UIState& uiState);
 void showAlgorithmSelection(UIState& uiState);
 void showSpeedSelection(UIState& uiState);

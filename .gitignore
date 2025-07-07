@@ -1,2 +1,3 @@
 *.o
 maze_visualizer
+.DS_Store
